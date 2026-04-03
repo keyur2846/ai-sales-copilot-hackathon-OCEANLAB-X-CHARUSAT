@@ -8,8 +8,22 @@ import { TranscriptFeed } from "@/components/TranscriptFeed";
 import { TeleprompterBlock } from "@/components/TeleprompterBlock";
 import { useCallCopilot } from "@/hooks/useCallCopilot";
 import { useWebRTCCall } from "@/hooks/useWebRTCCall";
-import { useStreamSTT } from "@/hooks/useStreamSTT";
+import { useStreamSTT, type STTConfig } from "@/hooks/useStreamSTT";
 import { useAgentTracker } from "@/hooks/useAgentTracker";
+import { Languages } from "lucide-react";
+
+const LANGUAGE_OPTIONS = [
+  { label: "Auto Detect", value: "unknown", mode: "transcribe" },
+  { label: "Hindi → English", value: "hi-IN", mode: "translit" },
+  { label: "Gujarati → English", value: "gu-IN", mode: "translit" },
+  { label: "Tamil → English", value: "ta-IN", mode: "translit" },
+  { label: "Telugu → English", value: "te-IN", mode: "translit" },
+  { label: "Kannada → English", value: "kn-IN", mode: "translit" },
+  { label: "Marathi → English", value: "mr-IN", mode: "translit" },
+  { label: "Bengali → English", value: "bn-IN", mode: "translit" },
+  { label: "English (native)", value: "en-IN", mode: "transcribe" },
+  { label: "Hindi (native script)", value: "hi-IN", mode: "transcribe" },
+] as const;
 
 function formatDuration(seconds: number): string {
   const mins = Math.floor(seconds / 60);
@@ -42,10 +56,17 @@ export default function LiveCallPage() {
     isOnCall && !isGenerating && teleprompterLine.length > 0
   );
 
+  // Language / transliteration config
+  const [langIndex, setLangIndex] = useState(0);
+  const sttConfig: STTConfig = {
+    languageCode: LANGUAGE_OPTIONS[langIndex].value,
+    mode: LANGUAGE_OPTIONS[langIndex].mode,
+  };
+
   // Customer STT only runs when agent is NOT speaking (has delivered the line or no line yet)
   const isCallActive = callStatus === "active";
   const customerSTTActive = isCallActive && (isDelivered || teleprompterLine.length === 0);
-  useStreamSTT(remoteStream, callId, "customer", customerSTTActive);
+  useStreamSTT(remoteStream, callId, "customer", customerSTTActive, sttConfig);
 
   const [duration, setDuration] = useState(0);
   const [isEnding, setIsEnding] = useState(false);
@@ -120,6 +141,20 @@ export default function LiveCallPage() {
         </div>
 
         <div className="flex items-center gap-4">
+          {/* Language dropdown */}
+          <div className="flex items-center gap-1.5">
+            <Languages className="size-3.5 text-[#888]" />
+            <select
+              value={langIndex}
+              onChange={(e) => setLangIndex(Number(e.target.value))}
+              className="bg-[#111] border border-[#333] text-[#ccc] text-[10px] font-mono px-2 py-1 outline-none focus:border-[#00ff88]"
+            >
+              {LANGUAGE_OPTIONS.map((opt, i) => (
+                <option key={i} value={i}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+
           <div className="flex items-center gap-1.5">
             {isOnCall ? (
               <Mic className="size-3.5 text-[#00ff88]" />

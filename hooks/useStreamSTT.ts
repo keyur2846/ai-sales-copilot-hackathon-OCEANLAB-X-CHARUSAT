@@ -5,8 +5,21 @@ import { db } from "@/lib/firebase";
 import { doc, updateDoc, arrayUnion } from "firebase/firestore";
 
 const SARVAM_API_KEY = process.env.NEXT_PUBLIC_SARVAM_API_KEY ?? "";
-const SARVAM_WS_URL = "wss://api.sarvam.ai/speech-to-text/ws?language-code=unknown&model=saaras:v3";
-const CHUNK_MS = 250; // Send audio every 250ms — Sarvam handles VAD internally
+const CHUNK_MS = 250;
+
+export interface STTConfig {
+  languageCode: string; // "unknown", "hi-IN", "gu-IN", "en-IN", etc.
+  mode: string;         // "transcribe", "translit"
+}
+
+export const DEFAULT_STT_CONFIG: STTConfig = {
+  languageCode: "unknown",
+  mode: "transcribe",
+};
+
+function buildSarvamUrl(config: STTConfig): string {
+  return `wss://api.sarvam.ai/speech-to-text/ws?language-code=${config.languageCode}&model=saaras:v3&mode=${config.mode}`;
+}
 
 /**
  * Connects a MediaStream directly to Sarvam.ai's streaming WebSocket.
@@ -17,7 +30,8 @@ export function useStreamSTT(
   stream: MediaStream | null,
   callId: string,
   speaker: "customer" | "agent",
-  isActive: boolean
+  isActive: boolean,
+  config: STTConfig = DEFAULT_STT_CONFIG
 ) {
   const wsRef = useRef<WebSocket | null>(null);
 
@@ -67,7 +81,8 @@ export function useStreamSTT(
       scriptNode.connect(audioContext.destination);
 
       // Connect to Sarvam.ai WebSocket with subprotocol auth
-      ws = new WebSocket(SARVAM_WS_URL, [`api-subscription-key.${SARVAM_API_KEY}`]);
+      const wsUrl = buildSarvamUrl(config);
+      ws = new WebSocket(wsUrl, [`api-subscription-key.${SARVAM_API_KEY}`]);
       wsRef.current = ws;
 
       ws.onopen = () => {
@@ -147,5 +162,5 @@ export function useStreamSTT(
       if (ws && ws.readyState === WebSocket.OPEN) ws.close();
       wsRef.current = null;
     };
-  }, [stream, callId, speaker, isActive]);
+  }, [stream, callId, speaker, isActive, config.languageCode, config.mode]);
 }
