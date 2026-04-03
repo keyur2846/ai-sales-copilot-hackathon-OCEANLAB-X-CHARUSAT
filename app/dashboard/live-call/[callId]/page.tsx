@@ -8,6 +8,7 @@ import { TranscriptFeed } from "@/components/TranscriptFeed";
 import { TeleprompterBlock } from "@/components/TeleprompterBlock";
 import { useCallCopilot } from "@/hooks/useCallCopilot";
 import { useWebRTCCall } from "@/hooks/useWebRTCCall";
+import { useStreamSTT } from "@/hooks/useStreamSTT";
 
 function formatDuration(seconds: number): string {
   const mins = Math.floor(seconds / 60);
@@ -30,8 +31,12 @@ export default function LiveCallPage() {
     endCall,
   } = useCallCopilot(callId);
 
-  const { isReady, isOnCall, callLink, callError, remoteStream, hangUp } =
+  const { isReady, isOnCall, callLink, callError, remoteStream, localStream, hangUp } =
     useWebRTCCall(callId, callStatus === "active");
+
+  // Transcribe both audio streams via Sarvam.ai
+  useStreamSTT(localStream, callId, "agent", isOnCall);
+  useStreamSTT(remoteStream, callId, "customer", isOnCall);
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const [duration, setDuration] = useState(0);
